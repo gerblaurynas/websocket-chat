@@ -1,0 +1,12 @@
+version: "3.7"
+services:
+  app:
+    build:
+      dockerfile: ./docker/images/golang/Dockerfile
+      context: .
+    volumes:
+      - .:/go/src/websocket-chat
+    working_dir: /go/src/websocket-chat
+    tty: true
+    environment:
+      GO111MODULE: "on"
