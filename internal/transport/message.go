@@ -2,12 +2,8 @@ package transport
 
 import "time"
 
-type Input struct {
-	Text string `json:"text"`
-}
-
-type Output struct {
-	*Input
+type Message struct {
+	Text      string    `json:"text"`
 	Timestamp time.Time `json:"timestamp"`
 	Username  string    `json:"username"`
 }

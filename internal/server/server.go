@@ -45,7 +45,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 	defer s.disconnectClient(username, c)
 
 	for {
-		input, err := s.reader.Read(c)
+		msg, err := s.reader.Read(c, username)
 		if err != nil {
 			switch err.(type) {
 			case transport.UserError:
@@ -57,7 +57,7 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		err = s.writer.SendAll(input, username, s.connections)
+		err = s.writer.SendAll(msg, s.connections)
 		if err != nil {
 			s.log.Warn().Msg(err.Error())
 			return

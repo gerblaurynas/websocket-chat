@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/pkg/errors"
 	"nhooyr.io/websocket"
@@ -12,14 +11,8 @@ import (
 
 type Writer struct{}
 
-func (w *Writer) SendAll(i *Input, author string, connections map[string]*websocket.Conn) error {
-	output := &Output{
-		Input:     i,
-		Timestamp: time.Now(),
-		Username:  author,
-	}
-
-	outMsg, err := json.Marshal(output)
+func (w *Writer) SendAll(m *Message, connections map[string]*websocket.Conn) error {
+	outMsg, err := json.Marshal(m)
 	if err != nil {
 		return errors.Wrap(err, "failed to build message")
 	}
