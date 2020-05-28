@@ -3,8 +3,8 @@ package transport
 import (
 	"context"
 	"encoding/json"
-	"errors"
 
+	"github.com/pkg/errors"
 	"nhooyr.io/websocket"
 )
 
@@ -18,14 +18,21 @@ func (r *Reader) Read(conn *websocket.Conn) (*Input, error) {
 
 	if messageType != websocket.MessageText {
 		_ = conn.Close(websocket.StatusNormalClosure, "non-text message received")
-		return nil, errors.New("non-text message received")
+
+		return nil, UserError{
+			error:       errors.New("non-text message received"),
+			userMessage: "invalid message",
+		}
 	}
 
 	var input Input
 
 	err = json.Unmarshal(msg, &input)
 	if err != nil {
-		return nil, errors.New("invalid message format")
+		return nil, UserError{
+			error:       errors.Wrap(err, "unmarshal message"),
+			userMessage: "invalid message",
+		}
 	}
 
 	return &input, nil

@@ -1,11 +1,11 @@
 package server
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/gerblaurynas/websocket-chat/internal/transport"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"nhooyr.io/websocket"
 )
@@ -47,11 +47,17 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 	for {
 		input, err := s.reader.Read(c)
 		if err != nil {
-			s.log.Warn().Msg(err.Error())
-			return
+			switch err.(type) {
+			case transport.UserError:
+				s.writer.SendError(err, c)
+				continue
+			default:
+				s.log.Warn().Msg(err.Error())
+				return
+			}
 		}
 
-		err = s.writer.Send(input, username, s.connections)
+		err = s.writer.SendAll(input, username, s.connections)
 		if err != nil {
 			s.log.Warn().Msg(err.Error())
 			return
@@ -60,17 +66,6 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) connectClient(w http.ResponseWriter, r *http.Request) (username string, c *websocket.Conn, err error) {
-	username = r.URL.Query().Get("username")
-	if username == "" {
-		err = errors.New("username not provided")
-		return
-	}
-
-	if _, exists := s.connections[username]; exists {
-		err = errors.New("client with this username already connected")
-		return
-	}
-
 	// allow connections from chrome extensions
 	options := &websocket.AcceptOptions{
 		InsecureSkipVerify: true,
@@ -78,18 +73,39 @@ func (s *Server) connectClient(w http.ResponseWriter, r *http.Request) (username
 
 	c, err = websocket.Accept(w, r, options)
 	if err != nil {
-		err = errors.New("cannot upgrade connection")
+		err = errors.Wrap(err, "cannot upgrade connection")
+		return
+	}
+
+	username = r.URL.Query().Get("username")
+	if username == "" {
+		err = errors.New("username not provided")
+		s.abortWithError(err, c)
+
+		return
+	}
+
+	if _, exists := s.connections[username]; exists {
+		err = errors.New(fmt.Sprintf("client with username %s is already connected", username))
+		s.abortWithError(err, c)
+
 		return
 	}
 
 	s.connections[username] = c
 	s.log.Info().Msg(fmt.Sprintf("%s connected", username))
 
-	return
+	return username, c, nil
 }
 
 func (s *Server) disconnectClient(username string, c *websocket.Conn) {
 	_ = c.Close(websocket.StatusInternalError, "internal error")
+
 	delete(s.connections, username)
 	s.log.Info().Msg(fmt.Sprintf("%s disconnected", username))
+}
+
+func (s *Server) abortWithError(reason error, c *websocket.Conn) {
+	s.writer.SendError(reason, c)
+	_ = c.Close(websocket.StatusInternalError, reason.Error())
 }

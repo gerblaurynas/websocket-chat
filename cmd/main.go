@@ -17,6 +17,7 @@ func main() {
 
 	s := server.New(&log)
 	log.Info().Msg("server is running...")
+
 	err := http.ListenAndServe(":80", s)
 	log.Fatal().Err(err).Msg("server terminated")
 }
