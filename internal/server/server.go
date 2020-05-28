@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/gerblaurynas/websocket-chat/internal/transport"
 	"github.com/pkg/errors"
@@ -15,14 +16,16 @@ type Server struct {
 	connections map[string]transport.Connection
 	reader      *transport.Reader
 	writer      *transport.Writer
+	lock        sync.Locker
 }
 
 func New(log *zerolog.Logger) *Server {
 	return &Server{
 		log:         *log,
 		connections: make(map[string]transport.Connection),
-		reader:      &transport.Reader{},
-		writer:      &transport.Writer{},
+		reader:      new(transport.Reader),
+		writer:      new(transport.Writer),
+		lock:        new(sync.Mutex),
 	}
 }
 
@@ -57,7 +60,9 @@ func (s *Server) handleConnection(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		s.lock.Lock()
 		err = s.writer.SendAll(msg, s.connections)
+		s.lock.Unlock()
 		if err != nil {
 			s.log.Warn().Msg(err.Error())
 			return
@@ -72,6 +77,8 @@ func (s *Server) connectClient(w http.ResponseWriter, r *http.Request) (username
 		err = errors.New("username not found")
 		return
 	}
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	if _, ok := s.connections[username]; ok {
 		http.Error(w, "username already connected", 409)
 		err = errors.New("username already connected")
@@ -98,6 +105,8 @@ func (s *Server) connectClient(w http.ResponseWriter, r *http.Request) (username
 func (s *Server) disconnectClient(username string, c *websocket.Conn) {
 	_ = c.Close(websocket.StatusInternalError, "internal error")
 
+	s.lock.Lock()
 	delete(s.connections, username)
+	s.lock.Unlock()
 	s.log.Info().Msg(fmt.Sprintf("%s disconnected", username))
 }
