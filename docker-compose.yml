@@ -1,9 +1,7 @@
 version: "3.7"
 services:
   app:
-    build:
-      dockerfile: ./docker/images/golang/Dockerfile
-      context: .
+    image: golang:1.14.3
     volumes:
       - .:/go/src/websocket-chat
     working_dir: /go/src/websocket-chat
