@@ -11,15 +11,18 @@ import (
 
 type Reader struct{}
 
-func (r *Reader) Read(conn *websocket.Conn, username string) (*Message, error) {
+type Connection interface {
+	Read(ctx context.Context) (websocket.MessageType, []byte, error)
+	Write(ctx context.Context, typ websocket.MessageType, p []byte) error
+}
+
+func (r *Reader) Read(conn Connection, username string) (*Message, error) {
 	messageType, msg, err := conn.Read(context.Background())
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "read error")
 	}
 
 	if messageType != websocket.MessageText {
-		_ = conn.Close(websocket.StatusNormalClosure, "non-text message received")
-
 		return nil, UserError{
 			error:       errors.New("non-text message received"),
 			userMessage: "invalid message",

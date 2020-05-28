@@ -11,14 +11,11 @@ import (
 
 type Writer struct{}
 
-func (w *Writer) SendAll(m *Message, connections map[string]*websocket.Conn) error {
-	outMsg, err := json.Marshal(m)
-	if err != nil {
-		return errors.Wrap(err, "failed to build message")
-	}
+func (w *Writer) SendAll(m *Message, connections map[string]Connection) error {
+	outMsg, _ := json.Marshal(m)
 
 	for i := range connections {
-		err = connections[i].Write(context.Background(), websocket.MessageText, outMsg)
+		err := connections[i].Write(context.Background(), websocket.MessageText, outMsg)
 		if err != nil {
 			return errors.Wrap(err, "send for connections")
 		}
@@ -27,7 +24,7 @@ func (w *Writer) SendAll(m *Message, connections map[string]*websocket.Conn) err
 	return nil
 }
 
-func (w *Writer) SendError(msg error, c *websocket.Conn) {
+func (w *Writer) SendError(msg error, c Connection) {
 	var text string
 
 	userError, ok := msg.(UserError)
