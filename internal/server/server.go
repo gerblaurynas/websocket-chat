@@ -71,7 +71,12 @@ func (s *Server) connectClient(w http.ResponseWriter, r *http.Request) (username
 		return
 	}
 
-	c, err = websocket.Accept(w, r, nil)
+	// allow connections from chrome extensions
+	options := &websocket.AcceptOptions{
+		InsecureSkipVerify: true,
+	}
+
+	c, err = websocket.Accept(w, r, options)
 	if err != nil {
 		err = errors.New("cannot upgrade connection")
 		return
@@ -84,7 +89,7 @@ func (s *Server) connectClient(w http.ResponseWriter, r *http.Request) (username
 }
 
 func (s *Server) disconnectClient(username string, c *websocket.Conn) {
-	c.Close(websocket.StatusInternalError, "internal error")
+	_ = c.Close(websocket.StatusInternalError, "internal error")
 	delete(s.connections, username)
 	s.log.Info().Msg(fmt.Sprintf("%s disconnected", username))
 }
